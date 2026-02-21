@@ -11,7 +11,7 @@
 
 #define COUNTDOWN_TIMER 60000
 
-Timer myTimer;
+Timer myTimer; // Creating a Timer object
 
 CRGB leds[NUM_LEDS]; // We use this array to modify leds
 
@@ -40,4 +40,3 @@ void loop() {
     while(true);
   }
 }
-

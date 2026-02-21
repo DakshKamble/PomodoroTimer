@@ -2,6 +2,8 @@
 #include "core/timer.h"
 
 void Timer::start(unsigned long durationMs) {
+    if(durationMs == 0)
+        return;
     duration = durationMs;
     startTime = millis();
     running = true;
@@ -27,4 +29,14 @@ unsigned long Timer::getRemaining() {
     }
 
     return duration - elapsed;
+}
+
+float Timer::getFractionalRemaining() {
+    if(!running)
+        return 0;
+    
+    float fraction = (float)getRemaining()/ duration;
+
+    return fraction;
+
 }

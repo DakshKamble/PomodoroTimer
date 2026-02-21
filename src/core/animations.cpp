@@ -14,3 +14,7 @@ void anim_comet(CRGB* leds, int numLeds) {
         position = 0;
     }
 }
+
+void anim_countDown(CRGB *leds, int NUM_LEDS, float fraction) {
+    
+}
