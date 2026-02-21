@@ -9,7 +9,7 @@
 #define LED_BRIGHTNESS 50
 #define ANIMATION_INTERVAL 50
 
-#define COUNTDOWN_TIMER 60000
+#define COUNTDOWN_TIMER 30000
 
 Timer myTimer; // Creating a Timer object
 
@@ -30,13 +30,8 @@ void setup() {
 
 void loop() {
   if(myTimer.isRunning()) {
-    unsigned long remaining = myTimer.getRemaining();
-
-    Serial.print("Remaining");
-    Serial.println(remaining);
-  }
-  else {
-    Serial.println("Timer finished");
-    while(true);
+    float fraction = myTimer.getFractionalRemaining();
+    anim_renderCountdown(leds, NUM_LEDS, fraction);
+    FastLED.show();
   }
 }
