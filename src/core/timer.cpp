@@ -36,7 +36,6 @@ float Timer::getFractionalRemaining() {
         return 0;
     
     float fraction = (float)getRemaining()/ duration;
-
     return fraction;
 
 }

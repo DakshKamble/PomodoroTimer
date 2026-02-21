@@ -15,6 +15,26 @@ void anim_comet(CRGB* leds, int numLeds) {
     }
 }
 
-void anim_countDown(CRGB *leds, int NUM_LEDS, float fraction) {
+void anim_renderCountdown(CRGB *leds, int NUM_LEDS, float fraction) {
     
+    float ledsExact = fraction * NUM_LEDS;
+
+    int fullLeds = (int)ledsExact;
+    float partialLeds = ledsExact - fullLeds;
+
+    for(int i = 0; i < NUM_LEDS; i++) {
+        if(i < fullLeds) {
+            leds[i] = CRGB::Red;
+        }
+        
+        else if(i == fullLeds) {
+            uint8_t brightness = partialLeds * 255;
+            leds[i] = CRGB(brightness, 0, 0);
+        }
+
+        else {
+            leds[i] = CRGB::Black;
+        }
+    }
+
 }
