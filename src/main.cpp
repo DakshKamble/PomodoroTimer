@@ -25,11 +25,11 @@ void setup() {
   FastLED.addLeds<NEOPIXEL, LED_PIN>(leds, NUM_LEDS); // Setup LED strip
   FastLED.setBrightness(LED_BRIGHTNESS); // Seting LED brightness
 
-  myTimer.start(COUNTDOWN_TIMER);
+  myTimer.start(COUNTDOWN_TIMER); //TEMP TEST
 }
 
 void loop() {
-  if(myTimer.isRunning()) {
+  if(myTimer.isRunning()) { //TEMP TEST
     float fraction = myTimer.getFractionalRemaining();
     anim_renderCountdown(leds, NUM_LEDS, fraction);
     FastLED.show();
