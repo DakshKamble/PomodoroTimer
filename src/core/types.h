@@ -24,6 +24,7 @@ enum class AnimationType {
     SOLID_COLOR,
     TIME_SELECTION,
     FLASH_COMPLETE,
+    FLASH_CANCELLED,
     OFF
 };
 
@@ -31,7 +32,8 @@ enum class AnimationType {
 enum class AppState {
     TIME_SELECTION,
     COUNTDOWN_RUNNING,
-    TIMER_COMPLETE
+    TIMER_COMPLETE,
+    TIMER_CANCELLED
 };
 
 // Error codes

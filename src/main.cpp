@@ -25,10 +25,12 @@ unsigned long flashStartTime = 0;
 void onTimerComplete();
 void onEncoderRotation(EncoderDirection direction);
 void onButtonPress();
+void onButtonLongPress();
 void updateTimeSelection();
 void startCountdown();
 void updateCountdown();
 void updateFlashComplete();
+void updateFlashCancelled();
 void transitionToState(AppState newState);
 
 // Timer callback functions
@@ -71,6 +73,26 @@ void onButtonPress() {
             // Return to time selection
             transitionToState(AppState::TIME_SELECTION);
             break;
+            
+        case AppState::TIMER_CANCELLED:
+            // Return to time selection
+            transitionToState(AppState::TIME_SELECTION);
+            break;
+    }
+}
+
+void onButtonLongPress() {
+    switch (currentState) {
+        case AppState::COUNTDOWN_RUNNING:
+            // Cancel the countdown
+            LOG_INFO("Timer cancelled by long press");
+            pomodoroTimer.stop();
+            transitionToState(AppState::TIMER_CANCELLED);
+            break;
+            
+        default:
+            // Long press not handled in other states
+            break;
     }
 }
 
@@ -93,6 +115,11 @@ void transitionToState(AppState newState) {
             
         case AppState::TIMER_COMPLETE:
             animManager.setAnimation(AnimationType::FLASH_COMPLETE);
+            flashStartTime = millis();
+            break;
+            
+        case AppState::TIMER_CANCELLED:
+            animManager.setAnimation(AnimationType::FLASH_CANCELLED);
             flashStartTime = millis();
             break;
     }
@@ -148,6 +175,23 @@ void updateCountdown() {
 void updateFlashComplete() {
     AnimationParams params;
     params.progress = 0.0f; // Not used in flash animation
+    params.primaryColor = CRGB::Green;
+    params.secondaryColor = CRGB::Black;
+    params.brightness = LED_BRIGHTNESS;
+    params.timestamp = millis();
+    
+    animManager.update(params);
+    animManager.show();
+    
+    // Check if flash animation should end (3 seconds total)
+    if (millis() - flashStartTime > (FLASH_ANIMATION_CYCLES * 1000UL)) {
+        transitionToState(AppState::TIME_SELECTION);
+    }
+}
+
+void updateFlashCancelled() {
+    AnimationParams params;
+    params.progress = 0.0f; // Not used in flash animation
     params.primaryColor = CRGB::Red;
     params.secondaryColor = CRGB::Black;
     params.brightness = LED_BRIGHTNESS;
@@ -180,6 +224,7 @@ bool initializeSystem() {
     encoder.init();
     encoder.setEncoderCallback(onEncoderRotation);
     encoder.setButtonCallback(onButtonPress);
+    encoder.setButtonLongPressCallback(onButtonLongPress);
     
     // Setup timer callbacks
     pomodoroTimer.setOnCompleteCallback(onTimerComplete);
@@ -229,6 +274,10 @@ void loop() {
             
         case AppState::TIMER_COMPLETE:
             updateFlashComplete();
+            break;
+            
+        case AppState::TIMER_CANCELLED:
+            updateFlashCancelled();
             break;
     }
     

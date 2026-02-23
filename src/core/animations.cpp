@@ -45,6 +45,9 @@ void AnimationManager::update(const AnimationParams& params) {
         case AnimationType::FLASH_COMPLETE:
             anim_flashComplete(leds, numLeds, params);
             break;
+        case AnimationType::FLASH_CANCELLED:
+            anim_flashCancelled(leds, numLeds, params);
+            break;
         case AnimationType::OFF:
         default:
             anim_off(leds, numLeds, params);
@@ -161,21 +164,18 @@ void anim_timeSelection(CRGB* leds, int numLeds, const AnimationParams& params) 
 }
 
 void anim_flashComplete(CRGB* leds, int numLeds, const AnimationParams& params) {
-    // Create smooth flash animation for completion notification
-    // Uses timestamp to create flashing effect
+    // Create smooth fade animation for completion notification
     static uint32_t flashStartTime = 0;
-    static int flashCount = 0;
-    static bool isFlashing = false;
+    static int currentCycle = 0;
     
     if (flashStartTime == 0) {
         flashStartTime = params.timestamp;
-        flashCount = 0;
-        isFlashing = true;
+        currentCycle = 0;
     }
     
     uint32_t elapsed = params.timestamp - flashStartTime;
-    uint32_t flashDuration = 500; // 500ms per flash (on + off)
-    uint32_t totalDuration = FLASH_ANIMATION_CYCLES * flashDuration * 2; // 3 cycles * 500ms * 2 (on/off)
+    uint32_t cycleDuration = 1000; // 1 second per complete fade cycle (in + out)
+    uint32_t totalDuration = FLASH_ANIMATION_CYCLES * cycleDuration;
     
     if (elapsed >= totalDuration) {
         // Animation complete, turn off all LEDs
@@ -186,11 +186,67 @@ void anim_flashComplete(CRGB* leds, int numLeds, const AnimationParams& params) 
         return;
     }
     
-    // Determine if we should be on or off
-    uint32_t cycleTime = elapsed % (flashDuration * 2);
-    bool shouldBeOn = cycleTime < flashDuration;
+    // Calculate smooth fade brightness
+    uint32_t cycleTime = elapsed % cycleDuration;
+    float cycleProgress = (float)cycleTime / cycleDuration;
     
-    CRGB color = shouldBeOn ? CRGB::Red : CRGB::Black;
+    float brightness;
+    if (cycleProgress < 0.5f) {
+        // Fade in (0 to 1)
+        brightness = cycleProgress * 2.0f;
+    } else {
+        // Fade out (1 to 0)
+        brightness = (1.0f - cycleProgress) * 2.0f;
+    }
+    
+    // Apply smooth brightness to all LEDs
+    CRGB color = CRGB::Green;
+    color.nscale8_video((uint8_t)(brightness * 255));
+    
+    for (int i = 0; i < numLeds; i++) {
+        leds[i] = color;
+    }
+}
+
+void anim_flashCancelled(CRGB* leds, int numLeds, const AnimationParams& params) {
+    // Create smooth red fade animation for cancel notification
+    static uint32_t flashStartTime = 0;
+    static int currentCycle = 0;
+    
+    if (flashStartTime == 0) {
+        flashStartTime = params.timestamp;
+        currentCycle = 0;
+    }
+    
+    uint32_t elapsed = params.timestamp - flashStartTime;
+    uint32_t cycleDuration = 1000; // 1 second per complete fade cycle (in + out)
+    uint32_t totalDuration = FLASH_ANIMATION_CYCLES * cycleDuration;
+    
+    if (elapsed >= totalDuration) {
+        // Animation complete, turn off all LEDs
+        for (int i = 0; i < numLeds; i++) {
+            leds[i] = CRGB::Black;
+        }
+        flashStartTime = 0; // Reset for next time
+        return;
+    }
+    
+    // Calculate smooth fade brightness
+    uint32_t cycleTime = elapsed % cycleDuration;
+    float cycleProgress = (float)cycleTime / cycleDuration;
+    
+    float brightness;
+    if (cycleProgress < 0.5f) {
+        // Fade in (0 to 1)
+        brightness = cycleProgress * 2.0f;
+    } else {
+        // Fade out (1 to 0)
+        brightness = (1.0f - cycleProgress) * 2.0f;
+    }
+    
+    // Apply smooth brightness to all LEDs with RED color for cancel
+    CRGB color = CRGB::Red;
+    color.nscale8_video((uint8_t)(brightness * 255));
     
     for (int i = 0; i < numLeds; i++) {
         leds[i] = color;

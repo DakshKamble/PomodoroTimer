@@ -18,7 +18,8 @@ RotaryEncoder::RotaryEncoder()
     : lastClkState(false), lastDtState(false), lastSwState(true),
       lastEncoderTime(0), lastButtonTime(0),
       lastDirection(EncoderDirection::NONE), buttonPressed(false),
-      encoderCallback(nullptr), buttonCallback(nullptr), lastEncoderValue(0) {
+      buttonLongPressed(false), lastEncoderValue(0), buttonPressStartTime(0),
+      encoderCallback(nullptr), buttonCallback(nullptr), buttonLongPressCallback(nullptr) {
     encoderInstance = this;
 }
 
@@ -62,12 +63,22 @@ bool RotaryEncoder::wasButtonPressed() {
     return pressed;
 }
 
+bool RotaryEncoder::wasButtonLongPressed() {
+    bool longPressed = buttonLongPressed;
+    buttonLongPressed = false; // Reset after reading
+    return longPressed;
+}
+
 void RotaryEncoder::setEncoderCallback(EncoderCallback callback) {
     encoderCallback = callback;
 }
 
 void RotaryEncoder::setButtonCallback(ButtonCallback callback) {
     buttonCallback = callback;
+}
+
+void RotaryEncoder::setButtonLongPressCallback(ButtonLongPressCallback callback) {
+    buttonLongPressCallback = callback;
 }
 
 bool RotaryEncoder::readPin(int pin) {
@@ -118,26 +129,42 @@ void RotaryEncoder::updateEncoder() {
 
 void RotaryEncoder::handleButtonChange() {
     unsigned long currentTime = millis();
-    
-    // Debounce button
-    if (currentTime - lastButtonTime < ENCODER_DEBOUNCE_MS) {
-        return;
-    }
-    
     bool currentSwState = readPin(ENCODER_SW_PIN);
     
-    // Button state changed and button was pressed (active LOW)
-    if (currentSwState != lastSwState && currentSwState == false) {
-        buttonPressed = true;
-        lastButtonTime = currentTime;
-        
-        LOG_DEBUG("Button pressed");
-        
-        // Call callback if set
-        if (buttonCallback != nullptr) {
-            buttonCallback();
+    // Button state changed
+    if (currentSwState != lastSwState) {
+        if (currentTime - lastButtonTime < ENCODER_DEBOUNCE_MS) {
+            return; // Debounce
         }
+        
+        if (currentSwState == false) {
+            // Button pressed (active LOW)
+            buttonPressStartTime = currentTime;
+            LOG_DEBUG("Button press started");
+        } else {
+            // Button released
+            unsigned long pressDuration = currentTime - buttonPressStartTime;
+            
+            if (pressDuration >= ENCODER_LONG_PRESS_MS) {
+                // Long press detected
+                buttonLongPressed = true;
+                LOG_DEBUG("Button long pressed");
+                
+                if (buttonLongPressCallback != nullptr) {
+                    buttonLongPressCallback();
+                }
+            } else if (pressDuration > ENCODER_DEBOUNCE_MS) {
+                // Short press detected
+                buttonPressed = true;
+                LOG_DEBUG("Button short pressed");
+                
+                if (buttonCallback != nullptr) {
+                    buttonCallback();
+                }
+            }
+        }
+        
+        lastButtonTime = currentTime;
+        lastSwState = currentSwState;
     }
-    
-    lastSwState = currentSwState;
 }

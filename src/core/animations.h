@@ -50,6 +50,7 @@ void anim_pulse(CRGB* leds, int numLeds, const AnimationParams& params);
 void anim_solidColor(CRGB* leds, int numLeds, const AnimationParams& params);
 void anim_timeSelection(CRGB* leds, int numLeds, const AnimationParams& params);
 void anim_flashComplete(CRGB* leds, int numLeds, const AnimationParams& params);
+void anim_flashCancelled(CRGB* leds, int numLeds, const AnimationParams& params);
 void anim_off(CRGB* leds, int numLeds, const AnimationParams& params);
 
 #endif

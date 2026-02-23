@@ -30,13 +30,16 @@ public:
     // Encoder reading
     EncoderDirection getDirection();
     bool wasButtonPressed();
+    bool wasButtonLongPressed();
     
     // Callback support
     typedef void (*EncoderCallback)(EncoderDirection direction);
     typedef void (*ButtonCallback)();
+    typedef void (*ButtonLongPressCallback)();
     
     void setEncoderCallback(EncoderCallback callback);
     void setButtonCallback(ButtonCallback callback);
+    void setButtonLongPressCallback(ButtonLongPressCallback callback);
     
     // Interrupt handler (public so ISR can call it)
     void updateEncoder();
@@ -54,11 +57,14 @@ private:
     // State tracking
     EncoderDirection lastDirection;
     bool buttonPressed;
+    bool buttonLongPressed;
     long lastEncoderValue;
+    unsigned long buttonPressStartTime;
     
     // Callbacks
     EncoderCallback encoderCallback;
     ButtonCallback buttonCallback;
+    ButtonLongPressCallback buttonLongPressCallback;
     
     // Helper methods
     bool readPin(int pin);

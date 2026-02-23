@@ -11,6 +11,7 @@
 #define ENCODER_DT_PIN D1
 #define ENCODER_CLK_PIN D0
 #define ENCODER_DEBOUNCE_MS 50
+#define ENCODER_LONG_PRESS_MS 3000    // 3 seconds for long press
 
 // Timing Configuration (in milliseconds)
 #define POMODORO_WORK_DURATION 1500000    // 25 minutes
