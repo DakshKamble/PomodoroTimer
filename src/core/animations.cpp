@@ -74,21 +74,26 @@ void AnimationManager::setColors(CRGB primary, CRGB secondary) {
 
 // Built-in Animation Functions
 void anim_countdown(CRGB* leds, int numLeds, const AnimationParams& params) {
+    // Calculate how many LEDs should be lit based on remaining time
     float ledsExact = params.progress * numLeds;
     int fullLeds = (int)ledsExact;
     float partialLed = ledsExact - fullLeds;
     
+    // Turn off all LEDs first
     for (int i = 0; i < numLeds; i++) {
-        if (i < fullLeds) {
-            leds[i] = params.primaryColor;
-        } else if (i == fullLeds && partialLed > 0) {
-            // Smooth transition for partial LED
-            CRGB color = params.primaryColor;
-            color.nscale8_video((uint8_t)(partialLed * 255));
-            leds[i] = color;
-        } else {
-            leds[i] = params.secondaryColor;
-        }
+        leds[i] = CRGB::Black;
+    }
+    
+    // Light up LEDs from 0 to the remaining count (countdown from selected position)
+    for (int i = 0; i < fullLeds; i++) {
+        leds[i] = params.primaryColor;
+    }
+    
+    // Handle partial LED for smooth transition
+    if (fullLeds < numLeds && partialLed > 0) {
+        CRGB color = params.primaryColor;
+        color.nscale8_video((uint8_t)(partialLed * 255));
+        leds[fullLeds] = color;
     }
 }
 

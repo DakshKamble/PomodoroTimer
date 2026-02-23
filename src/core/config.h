@@ -24,7 +24,7 @@
 
 // Timer Selection Configuration
 #define MAX_TIMER_SECONDS 60              // Maximum timer setting (60 seconds)
-#define TIMER_STEP_SECONDS 1              // Step size for timer adjustment
+#define TIMER_STEP_SECONDS 5              // Step size for timer adjustment (5 seconds per step)
 #define FLASH_ANIMATION_CYCLES 3          // Number of flash cycles at completion
 
 // Default test duration (for development)

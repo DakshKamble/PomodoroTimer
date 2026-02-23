@@ -127,8 +127,15 @@ void startCountdown() {
 }
 
 void updateCountdown() {
+    // Calculate the maximum LEDs that should be lit based on selected time
+    float maxProgress = (float)selectedSeconds / MAX_TIMER_SECONDS;
+    float currentProgress = pomodoroTimer.getFractionalRemaining();
+    
+    // Scale the progress to only use the selected portion of the ring
+    float scaledProgress = currentProgress * maxProgress;
+    
     AnimationParams params;
-    params.progress = pomodoroTimer.getFractionalRemaining();
+    params.progress = scaledProgress;
     params.primaryColor = CRGB::Red;
     params.secondaryColor = CRGB::Black;
     params.brightness = LED_BRIGHTNESS;
