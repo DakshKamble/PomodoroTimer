@@ -8,16 +8,19 @@
 #include "core/timer.h"
 #include "core/animations.h"
 #include "core/encoder.h"
+#include "core/display.h"
 
 // Global objects
 Timer pomodoroTimer;
 AnimationManager animManager(nullptr, NUM_LEDS);
 RotaryEncoder encoder;
+OLEDDisplay oledDisplay;
 CRGB leds[NUM_LEDS];
 
 // Application state
 AppState currentState = AppState::TIME_SELECTION;
-int selectedSeconds = 0;
+int selectedMinutes = 0;
+int encoderStepCount = 0;  // Track encoder steps for sensitivity control
 bool systemInitialized = false;
 unsigned long flashStartTime = 0;
 
@@ -46,21 +49,34 @@ void onTimerTick() {
 // Encoder callback functions
 void onEncoderRotation(EncoderDirection direction) {
     if (currentState == AppState::TIME_SELECTION) {
+        // Update encoder step count
         if (direction == EncoderDirection::CLOCKWISE) {
-            selectedSeconds = min(selectedSeconds + TIMER_STEP_SECONDS, MAX_TIMER_SECONDS);
+            encoderStepCount++;
         } else if (direction == EncoderDirection::COUNTER_CLOCKWISE) {
-            selectedSeconds = max(selectedSeconds - TIMER_STEP_SECONDS, 0);
+            encoderStepCount--;
         }
         
-        LOG_INFOF("Timer set to %d seconds", selectedSeconds);
-        updateTimeSelection();
+        // Only update timer when we've accumulated enough steps
+        if (abs(encoderStepCount) >= ENCODER_STEPS_PER_INCREMENT) {
+            if (encoderStepCount > 0) {
+                selectedMinutes = min(selectedMinutes + TIMER_STEP_MINUTES, MAX_TIMER_MINUTES);
+            } else {
+                selectedMinutes = max(selectedMinutes - TIMER_STEP_MINUTES, 0);
+            }
+            
+            // Reset step count
+            encoderStepCount = 0;
+            
+            LOG_INFOF("Timer set to %d minutes", selectedMinutes);
+            updateTimeSelection();
+        }
     }
 }
 
 void onButtonPress() {
     switch (currentState) {
         case AppState::TIME_SELECTION:
-            if (selectedSeconds > 0) {
+            if (selectedMinutes > 0) {
                 startCountdown();
             }
             break;
@@ -104,7 +120,8 @@ void transitionToState(AppState newState) {
     switch (newState) {
         case AppState::TIME_SELECTION:
             animManager.setAnimation(AnimationType::TIME_SELECTION);
-            selectedSeconds = 0; // Reset to 0
+            selectedMinutes = 0; // Reset to 0
+            encoderStepCount = 0; // Reset encoder step count
             updateTimeSelection();
             break;
             
@@ -116,18 +133,20 @@ void transitionToState(AppState newState) {
         case AppState::TIMER_COMPLETE:
             animManager.setAnimation(AnimationType::FLASH_COMPLETE);
             flashStartTime = millis();
+            oledDisplay.showComplete();
             break;
             
         case AppState::TIMER_CANCELLED:
             animManager.setAnimation(AnimationType::FLASH_CANCELLED);
             flashStartTime = millis();
+            oledDisplay.showCancelled();
             break;
     }
 }
 
 void updateTimeSelection() {
-    // Calculate progress based on selected seconds (0 to 60 seconds)
-    float progress = (float)selectedSeconds / MAX_TIMER_SECONDS;
+    // Calculate progress based on selected minutes (0 to 60 minutes)
+    float progress = (float)selectedMinutes / MAX_TIMER_MINUTES;
     
     AnimationParams params;
     params.progress = progress;
@@ -138,12 +157,15 @@ void updateTimeSelection() {
     
     animManager.update(params);
     animManager.show();
+    
+    // Update OLED display (convert to seconds for display)
+    oledDisplay.showTimeSelection(selectedMinutes * 60);
 }
 
 void startCountdown() {
-    unsigned long durationMs = selectedSeconds * 1000UL; // Convert seconds to milliseconds
+    unsigned long durationMs = selectedMinutes * 60000UL; // Convert minutes to milliseconds
     
-    LOG_INFOF("Starting countdown: %d seconds (%lu ms)", selectedSeconds, durationMs);
+    LOG_INFOF("Starting countdown: %d minutes (%lu ms)", selectedMinutes, durationMs);
     
     ErrorCode result = pomodoroTimer.start(durationMs);
     if (result == ErrorCode::SUCCESS) {
@@ -155,7 +177,7 @@ void startCountdown() {
 
 void updateCountdown() {
     // Calculate the maximum LEDs that should be lit based on selected time
-    float maxProgress = (float)selectedSeconds / MAX_TIMER_SECONDS;
+    float maxProgress = (float)selectedMinutes / MAX_TIMER_MINUTES;
     float currentProgress = pomodoroTimer.getFractionalRemaining();
     
     // Scale the progress to only use the selected portion of the ring
@@ -170,6 +192,11 @@ void updateCountdown() {
     
     animManager.update(params);
     animManager.show();
+    
+    // Update OLED display
+    int remainingSeconds = (int)(pomodoroTimer.getRemaining() / 1000);
+    int totalSeconds = selectedMinutes * 60;
+    oledDisplay.showCountdown(remainingSeconds, totalSeconds);
 }
 
 void updateFlashComplete() {
@@ -219,6 +246,9 @@ bool initializeSystem() {
     // Initialize animation manager with LED array
     animManager = AnimationManager(leds, NUM_LEDS);
     animManager.setAnimation(AnimationType::TIME_SELECTION);
+    
+    // Initialize OLED display
+    oledDisplay.init();
     
     // Initialize rotary encoder
     encoder.init();
