@@ -1,40 +1,199 @@
 #include <Arduino.h>
-#include "core/animations.h"
+#include "animations.h"
 
-void anim_comet(CRGB* leds, int numLeds) {
+// AnimationManager Implementation
+AnimationManager::AnimationManager(CRGB* ledArray, int numLeds) 
+    : leds(ledArray), numLeds(numLeds), currentAnimation(AnimationType::OFF),
+      customAnimationFunc(nullptr), brightness(LED_BRIGHTNESS),
+      primaryColor(CRGB::Red), secondaryColor(CRGB::Black) {
+}
 
-    static int position = 0;
+void AnimationManager::setAnimation(AnimationType type) {
+    currentAnimation = type;
+    customAnimationFunc = nullptr;
+}
 
-    fadeToBlackBy(leds, numLeds, 50);
+void AnimationManager::setCustomAnimation(AnimationFunction customFunc) {
+    customAnimationFunc = customFunc;
+    currentAnimation = AnimationType::OFF; // Use custom function instead
+}
 
-    leds[position] = CRGB::Red;
-
-    position++;
-    if (position >= numLeds) {
-        position = 0;
+void AnimationManager::update(const AnimationParams& params) {
+    // Use custom animation if set
+    if (customAnimationFunc != nullptr) {
+        customAnimationFunc(leds, numLeds, params);
+        return;
+    }
+    
+    // Use built-in animations
+    switch (currentAnimation) {
+        case AnimationType::COUNTDOWN:
+            anim_countdown(leds, numLeds, params);
+            break;
+        case AnimationType::COMET:
+            anim_comet(leds, numLeds, params);
+            break;
+        case AnimationType::PULSE:
+            anim_pulse(leds, numLeds, params);
+            break;
+        case AnimationType::SOLID_COLOR:
+            anim_solidColor(leds, numLeds, params);
+            break;
+        case AnimationType::TIME_SELECTION:
+            anim_timeSelection(leds, numLeds, params);
+            break;
+        case AnimationType::FLASH_COMPLETE:
+            anim_flashComplete(leds, numLeds, params);
+            break;
+        case AnimationType::OFF:
+        default:
+            anim_off(leds, numLeds, params);
+            break;
     }
 }
 
-void anim_renderCountdown(CRGB *leds, int NUM_LEDS, float fraction) {
-    
-    float ledsExact = fraction * NUM_LEDS;
+void AnimationManager::clear() {
+    for (int i = 0; i < numLeds; i++) {
+        leds[i] = CRGB::Black;
+    }
+}
 
+void AnimationManager::show() {
+    FastLED.show();
+}
+
+void AnimationManager::setBrightness(uint8_t newBrightness) {
+    brightness = newBrightness;
+    FastLED.setBrightness(brightness);
+}
+
+void AnimationManager::setColors(CRGB primary, CRGB secondary) {
+    primaryColor = primary;
+    secondaryColor = secondary;
+}
+
+// Built-in Animation Functions
+void anim_countdown(CRGB* leds, int numLeds, const AnimationParams& params) {
+    float ledsExact = params.progress * numLeds;
     int fullLeds = (int)ledsExact;
-    float partialLeds = ledsExact - fullLeds;
-
-    for(int i = 0; i < NUM_LEDS; i++) {
-        if(i < fullLeds) {
-            leds[i] = CRGB::Red;
+    float partialLed = ledsExact - fullLeds;
+    
+    for (int i = 0; i < numLeds; i++) {
+        if (i < fullLeds) {
+            leds[i] = params.primaryColor;
+        } else if (i == fullLeds && partialLed > 0) {
+            // Smooth transition for partial LED
+            CRGB color = params.primaryColor;
+            color.nscale8_video((uint8_t)(partialLed * 255));
+            leds[i] = color;
+        } else {
+            leds[i] = params.secondaryColor;
         }
-        
-        else if(i == fullLeds) {
-            uint8_t brightness = partialLeds * 255;
-            leds[i] = CRGB(brightness, 0, 0);
-        }
+    }
+}
 
-        else {
+void anim_comet(CRGB* leds, int numLeds, const AnimationParams& params) {
+    static uint32_t lastUpdate = 0;
+    static int position = 0;
+    
+    // Update position based on time
+    if (params.timestamp - lastUpdate > 100) { // Update every 100ms
+        position = (position + 1) % numLeds;
+        lastUpdate = params.timestamp;
+    }
+    
+    // Fade all LEDs
+    fadeToBlackBy(leds, numLeds, 50);
+    
+    // Set comet head
+    leds[position] = params.primaryColor;
+    
+    // Add tail effect
+    for (int i = 1; i <= 3 && i <= numLeds; i++) {
+        int tailPos = (position - i + numLeds) % numLeds;
+        CRGB tailColor = params.primaryColor;
+        tailColor.nscale8_video(255 / (i + 1));
+        leds[tailPos] = tailColor;
+    }
+}
+
+void anim_pulse(CRGB* leds, int numLeds, const AnimationParams& params) {
+    // Create breathing effect based on timestamp
+    float breathe = (sin(params.timestamp * 0.005f) + 1.0f) * 0.5f; // 0.0 to 1.0
+    
+    CRGB color = params.primaryColor;
+    color.nscale8_video((uint8_t)(breathe * 255));
+    
+    for (int i = 0; i < numLeds; i++) {
+        leds[i] = color;
+    }
+}
+
+void anim_solidColor(CRGB* leds, int numLeds, const AnimationParams& params) {
+    for (int i = 0; i < numLeds; i++) {
+        leds[i] = params.primaryColor;
+    }
+}
+
+void anim_timeSelection(CRGB* leds, int numLeds, const AnimationParams& params) {
+    // Show white LEDs based on progress (0.0 = no LEDs, 1.0 = all LEDs)
+    float ledsExact = params.progress * numLeds;
+    int fullLeds = (int)ledsExact;
+    float partialLed = ledsExact - fullLeds;
+    
+    for (int i = 0; i < numLeds; i++) {
+        if (i < fullLeds) {
+            leds[i] = CRGB::White;
+        } else if (i == fullLeds && partialLed > 0) {
+            // Smooth transition for partial LED
+            CRGB color = CRGB::White;
+            color.nscale8_video((uint8_t)(partialLed * 255));
+            leds[i] = color;
+        } else {
             leds[i] = CRGB::Black;
         }
     }
+}
 
+void anim_flashComplete(CRGB* leds, int numLeds, const AnimationParams& params) {
+    // Create smooth flash animation for completion notification
+    // Uses timestamp to create flashing effect
+    static uint32_t flashStartTime = 0;
+    static int flashCount = 0;
+    static bool isFlashing = false;
+    
+    if (flashStartTime == 0) {
+        flashStartTime = params.timestamp;
+        flashCount = 0;
+        isFlashing = true;
+    }
+    
+    uint32_t elapsed = params.timestamp - flashStartTime;
+    uint32_t flashDuration = 500; // 500ms per flash (on + off)
+    uint32_t totalDuration = FLASH_ANIMATION_CYCLES * flashDuration * 2; // 3 cycles * 500ms * 2 (on/off)
+    
+    if (elapsed >= totalDuration) {
+        // Animation complete, turn off all LEDs
+        for (int i = 0; i < numLeds; i++) {
+            leds[i] = CRGB::Black;
+        }
+        flashStartTime = 0; // Reset for next time
+        return;
+    }
+    
+    // Determine if we should be on or off
+    uint32_t cycleTime = elapsed % (flashDuration * 2);
+    bool shouldBeOn = cycleTime < flashDuration;
+    
+    CRGB color = shouldBeOn ? CRGB::Red : CRGB::Black;
+    
+    for (int i = 0; i < numLeds; i++) {
+        leds[i] = color;
+    }
+}
+
+void anim_off(CRGB* leds, int numLeds, const AnimationParams& params) {
+    for (int i = 0; i < numLeds; i++) {
+        leds[i] = CRGB::Black;
+    }
 }
