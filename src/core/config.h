@@ -23,7 +23,7 @@
 #define POMODORO_WORK_DURATION 1500000    // 25 minutes
 #define POMODORO_SHORT_BREAK 300000       // 5 minutes
 #define POMODORO_LONG_BREAK 900000        // 15 minutes
-#define ANIMATION_INTERVAL 50
+#define ANIMATION_INTERVAL 16
 
 // Debug Configuration
 #define SERIAL_BAUD_RATE 115200

@@ -33,6 +33,12 @@ public:
     void setBrightness(uint8_t brightness);
     void setColors(CRGB primary, CRGB secondary = CRGB::Black);
     
+    // Helpers
+    static uint8_t applyGamma(uint8_t brightness);
+    static float easeOutQuart(float x);
+    static float easeInOutCubic(float x);
+    static float easeOutBounce(float x);
+
 private:
     CRGB* leds;
     int numLeds;
