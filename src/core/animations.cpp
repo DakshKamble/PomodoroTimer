@@ -42,6 +42,9 @@ void AnimationManager::update(const AnimationParams& params) {
         case AnimationType::TIME_SELECTION:
             anim_timeSelection(leds, numLeds, params);
             break;
+        case AnimationType::GAUGE_SWEEP:
+            anim_gaugeSweep(leds, numLeds, params);
+            break;
         case AnimationType::FLASH_COMPLETE:
             anim_flashComplete(leds, numLeds, params);
             break;
@@ -205,6 +208,37 @@ void anim_flashComplete(CRGB* leds, int numLeds, const AnimationParams& params) 
     
     for (int i = 0; i < numLeds; i++) {
         leds[i] = color;
+    }
+}
+
+void anim_gaugeSweep(CRGB* leds, int numLeds, const AnimationParams& params) {
+    // Gauge-style sweep animation from selected position to full ring
+    // params.progress represents the sweep progress (0.0 to 1.0)
+    // params.secondaryColor.r stores the selected LED count (hack to pass extra data)
+    
+    int selectedLeds = params.secondaryColor.r; // Number of LEDs for selected time
+    if (selectedLeds == 0) selectedLeds = 1; // Minimum 1 LED
+    
+    // Calculate current sweep position
+    int totalSweepLeds = numLeds - selectedLeds; // LEDs to sweep
+    int currentSweepLeds = (int)(params.progress * totalSweepLeds);
+    int currentTotalLeds = selectedLeds + currentSweepLeds;
+    
+    // Clear all LEDs first
+    for (int i = 0; i < numLeds; i++) {
+        leds[i] = CRGB::Black;
+    }
+    
+    // Turn ALL selected LEDs red first (not white)
+    for (int i = 0; i < selectedLeds; i++) {
+        leds[i] = params.primaryColor; // Red
+        leds[i].nscale8(params.brightness);
+    }
+    
+    // Show swept LEDs in red (continuing the sweep)
+    for (int i = selectedLeds; i < currentTotalLeds; i++) {
+        leds[i] = params.primaryColor; // Red
+        leds[i].nscale8(params.brightness);
     }
 }
 

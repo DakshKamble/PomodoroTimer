@@ -23,6 +23,8 @@ int selectedMinutes = 0;
 int encoderStepCount = 0;  // Track encoder steps for sensitivity control
 bool systemInitialized = false;
 unsigned long flashStartTime = 0;
+unsigned long sweepStartTime = 0;
+float sweepProgress = 0.0f;
 
 // Forward declarations
 void onTimerComplete();
@@ -32,6 +34,7 @@ void onButtonLongPress();
 void updateTimeSelection();
 void startCountdown();
 void updateCountdown();
+void updateGaugeSweep();
 void updateFlashComplete();
 void updateFlashCancelled();
 void transitionToState(AppState newState);
@@ -125,6 +128,13 @@ void transitionToState(AppState newState) {
             updateTimeSelection();
             break;
             
+        case AppState::GAUGE_SWEEP:
+            animManager.setAnimation(AnimationType::GAUGE_SWEEP);
+            sweepStartTime = millis();
+            sweepProgress = 0.0f;
+            LOG_INFO("Starting gauge sweep animation");
+            break;
+            
         case AppState::COUNTDOWN_RUNNING:
             animManager.setAnimation(AnimationType::COUNTDOWN);
             animManager.setColors(CRGB::Red, CRGB::Black);
@@ -150,7 +160,7 @@ void updateTimeSelection() {
     
     AnimationParams params;
     params.progress = progress;
-    params.primaryColor = CRGB::White;
+    params.primaryColor = CRGB::White;  // White for time selection
     params.secondaryColor = CRGB::Black;
     params.brightness = LED_BRIGHTNESS;
     params.timestamp = millis();
@@ -169,22 +179,19 @@ void startCountdown() {
     
     ErrorCode result = pomodoroTimer.start(durationMs);
     if (result == ErrorCode::SUCCESS) {
-        transitionToState(AppState::COUNTDOWN_RUNNING);
+        // Start with gauge sweep animation first
+        transitionToState(AppState::GAUGE_SWEEP);
     } else {
         LOG_ERROR("Failed to start countdown timer");
     }
 }
 
 void updateCountdown() {
-    // Calculate the maximum LEDs that should be lit based on selected time
-    float maxProgress = (float)selectedMinutes / MAX_TIMER_MINUTES;
+    // Use full LED ring for countdown (always 1.0 = full ring)
     float currentProgress = pomodoroTimer.getFractionalRemaining();
     
-    // Scale the progress to only use the selected portion of the ring
-    float scaledProgress = currentProgress * maxProgress;
-    
     AnimationParams params;
-    params.progress = scaledProgress;
+    params.progress = currentProgress;  // Use full ring, no scaling
     params.primaryColor = CRGB::Red;
     params.secondaryColor = CRGB::Black;
     params.brightness = LED_BRIGHTNESS;
@@ -214,6 +221,35 @@ void updateFlashComplete() {
     if (millis() - flashStartTime > (FLASH_ANIMATION_CYCLES * 1000UL)) {
         transitionToState(AppState::TIME_SELECTION);
     }
+}
+
+void updateGaugeSweep() {
+    unsigned long elapsed = millis() - sweepStartTime;
+    const unsigned long SWEEP_DURATION_MS = 1000; // 1 second sweep
+    
+    // Calculate sweep progress (0.0 to 1.0)
+    sweepProgress = (float)elapsed / SWEEP_DURATION_MS;
+    
+    if (sweepProgress >= 1.0f) {
+        // Sweep complete, transition to countdown
+        sweepProgress = 1.0f;
+        transitionToState(AppState::COUNTDOWN_RUNNING);
+        return;
+    }
+    
+    // Calculate selected LEDs based on selected minutes
+    int selectedLeds = (selectedMinutes * NUM_LEDS) / MAX_TIMER_MINUTES;
+    if (selectedLeds == 0 && selectedMinutes > 0) selectedLeds = 1; // Minimum 1 LED
+    
+    AnimationParams params;
+    params.progress = sweepProgress;
+    params.primaryColor = CRGB::Red;  // Red sweep color
+    params.secondaryColor = CRGB(selectedLeds, 0, 0); // Hack: store selectedLeds in red channel
+    params.brightness = LED_BRIGHTNESS;
+    params.timestamp = millis();
+    
+    animManager.update(params);
+    animManager.show();
 }
 
 void updateFlashCancelled() {
@@ -304,6 +340,10 @@ void loop() {
             
         case AppState::TIMER_COMPLETE:
             updateFlashComplete();
+            break;
+            
+        case AppState::GAUGE_SWEEP:
+            updateGaugeSweep();
             break;
             
         case AppState::TIMER_CANCELLED:

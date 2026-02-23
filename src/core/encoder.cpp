@@ -140,20 +140,14 @@ void RotaryEncoder::handleButtonChange() {
         if (currentSwState == false) {
             // Button pressed (active LOW)
             buttonPressStartTime = currentTime;
+            buttonLongPressed = false; // Reset long press flag
             LOG_DEBUG("Button press started");
         } else {
             // Button released
             unsigned long pressDuration = currentTime - buttonPressStartTime;
             
-            if (pressDuration >= ENCODER_LONG_PRESS_MS) {
-                // Long press detected
-                buttonLongPressed = true;
-                LOG_DEBUG("Button long pressed");
-                
-                if (buttonLongPressCallback != nullptr) {
-                    buttonLongPressCallback();
-                }
-            } else if (pressDuration > ENCODER_DEBOUNCE_MS) {
+            // Only trigger short press if long press hasn't been triggered yet
+            if (!buttonLongPressed && pressDuration > ENCODER_DEBOUNCE_MS) {
                 // Short press detected
                 buttonPressed = true;
                 LOG_DEBUG("Button short pressed");
@@ -166,5 +160,20 @@ void RotaryEncoder::handleButtonChange() {
         
         lastButtonTime = currentTime;
         lastSwState = currentSwState;
+    }
+    
+    // Check for long press while button is still held down
+    if (currentSwState == false && !buttonLongPressed) { // Button is pressed and long press not yet triggered
+        unsigned long pressDuration = currentTime - buttonPressStartTime;
+        
+        if (pressDuration >= ENCODER_LONG_PRESS_MS) {
+            // Long press detected while holding
+            buttonLongPressed = true;
+            LOG_DEBUG("Button long pressed (3 seconds reached)");
+            
+            if (buttonLongPressCallback != nullptr) {
+                buttonLongPressCallback();
+            }
+        }
     }
 }

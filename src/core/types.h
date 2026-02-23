@@ -23,6 +23,7 @@ enum class AnimationType {
     COMET,
     SOLID_COLOR,
     TIME_SELECTION,
+    GAUGE_SWEEP,
     FLASH_COMPLETE,
     FLASH_CANCELLED,
     OFF
@@ -31,6 +32,7 @@ enum class AnimationType {
 // Application states
 enum class AppState {
     TIME_SELECTION,
+    GAUGE_SWEEP,
     COUNTDOWN_RUNNING,
     TIMER_COMPLETE,
     TIMER_CANCELLED
